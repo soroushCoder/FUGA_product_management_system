@@ -1,0 +1,12 @@
+cat > .gitignore <<'EOF'
+node_modules/
+dist/
+build/
+coverage/
+.env
+*.env
+.vscode/
+.idea/
+.DS_Store
+apps/server/uploads/
+EOF

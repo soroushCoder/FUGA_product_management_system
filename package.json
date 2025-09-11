@@ -1,0 +1,19 @@
+{
+  "name": "fuga-monorepo",
+  "private": true,
+  "workspaces": ["apps/*"],
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "dev": "concurrently -n server,web -c blue,green \"npm -w apps/server run dev\" \"npm -w apps/web run dev\"",
+    "build": "npm -w apps/server run build && npm -w apps/web run build",
+    "typecheck": "npm -w apps/web run typecheck",
+    "lint": "eslint .",
+    "format": "prettier -w .",
+    "postinstall": "npm -w apps/server run prisma:generate || true"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0",
+    "eslint": "^8.57.0",
+    "prettier": "^3.3.3"
+  }
+}
