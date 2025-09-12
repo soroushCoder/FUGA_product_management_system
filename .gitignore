@@ -10,3 +10,15 @@ coverage/
 .DS_Store
 apps/server/uploads/
 EOF
+
+# Next.js build output
+apps/web/.next/
+apps/web/out/
+
+# Vercel (if you try their preview deploys)
+apps/web/.vercel/
+
+# Local env for Next
+apps/web/.env.local
+apps/web/.env.*.local
+
