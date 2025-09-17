@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+  NEXT_TELEMETRY_DISABLED: '1'
+  # testcontainers works on GH runners; disabling Ryuk avoids occasional CI perms issues
+  TESTCONTAINERS_RYUK_DISABLED: 'true'
+
+jobs:
+  server-tests:
+    name: Server tests (Vitest + Testcontainers)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install deps (root workspaces)
+        run: npm ci
+
+      - name: Typecheck/build server (fast fail on TS errors)
+        run: npm -w apps/server run build
+
+      - name: Run server tests
+        run: npm -w apps/server run test
+
+  web-tests:
+    name: Web tests (Vitest + RTL)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install deps (root workspaces)
+        run: npm ci
+
+      - name: Run web unit tests
+        run: npm -w apps/web run test
+
+      - name: Typecheck web
+        run: npm -w apps/web run typecheck
+
+  build:
+    name: Build server & web
+    needs: [server-tests, web-tests]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install deps (root workspaces)
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npm -w apps/server run prisma:generate
+
+      - name: Build server
+        run: npm -w apps/server run build
+
+      - name: Build web (Next.js)
+        run: npm -w apps/web run build
