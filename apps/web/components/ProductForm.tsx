@@ -47,7 +47,9 @@ export default function ProductForm({ onCreated }: { onCreated: () => void }) {
       </div>
       <div>
         <label className="block text-sm mb-1">Cover Art</label>
-        <input ref={fileRef} type="file" accept="image/*" className="input" required />
+        <input ref={fileRef} type="file" accept="image/*"   className="block w-full rounded-xl border border-gray-300 px-3 py-2
+             file:mr-4 file:rounded-lg file:border-0 file:bg-gray-900 file:text-white
+             file:px-4 file:py-2 file:cursor-pointer hover:file:bg-gray-800" required />
       </div>
       <button className="btn" disabled={busy}>{busy ? 'Creating…' : 'Create Product'}</button>
     </form>
