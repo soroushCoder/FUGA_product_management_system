@@ -5,7 +5,7 @@ import { api } from '../lib/api';
 import type { Product } from '../lib/types';
 import ProductForm from '../components/ProductForm';
 import ProductList from '../components/ProductList';
-import { ReloadIcon } from '../components/icons';
+import { ReloadIcon } from '../components/Icons';
 
 
 export default function Page() {
