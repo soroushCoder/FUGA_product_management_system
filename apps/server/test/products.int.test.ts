@@ -1,3 +1,4 @@
+
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import fs from 'node:fs';
@@ -12,6 +13,7 @@ process.env.PUBLIC_BASE_URL = 'http://localhost:3000';
 let container: StartedTestContainer;
 let app: any;
 
+
 async function createPngBuffer() {
   // tiny 1x1 PNG (hard-coded bytes)
   return Buffer.from(
@@ -21,26 +23,28 @@ async function createPngBuffer() {
 }
 
 describe('Products API', () => {
-  beforeAll(async () => {
-    container = await new GenericContainer('postgres:16')
-      .withEnv('POSTGRES_USER', 'postgres')
-      .withEnv('POSTGRES_PASSWORD', 'postgres')
-      .withEnv('POSTGRES_DB', 'fuga_test')
-      .withExposedPorts(5432)
-      .start();
+beforeAll(async () => {
+  container = await new GenericContainer('postgres:16')
+    .withEnvironment({
+      POSTGRES_USER: 'postgres',
+      POSTGRES_PASSWORD: 'postgres',
+      POSTGRES_DB: 'fuga_test',
+    })
+    .withExposedPorts(5432)
+    .start();
 
-    const host = container.getHost();
-    const port = container.getMappedPort(5432);
-    process.env.DATABASE_URL = `postgresql://postgres:postgres@${host}:${port}/fuga_test?schema=public`;
+  const host = container.getHost();
+  const port = container.getMappedPort(5432);
+  process.env.DATABASE_URL =
+    `postgresql://postgres:postgres@${host}:${port}/fuga_test?schema=public`;
 
-    // Generate client & push schema
-    execSync('npm -w apps/server run prisma:generate', { stdio: 'inherit' });
-    execSync('npx -w apps/server prisma db push', { stdio: 'inherit' });
+  execSync('npx prisma generate', { stdio: 'inherit', cwd: process.cwd(), env: process.env });
+  execSync('npx prisma db push',  { stdio: 'inherit', cwd: process.cwd(), env: process.env });
 
-    // import the app after env is set
-    const { buildApp } = await import('../src/app.js');
-    app = buildApp();
-  }, 120_000);
+  // import app only after env is set
+  const { buildApp } = await import('../src/app.js');
+  app = buildApp();
+}, 120_000);
 
   afterAll(async () => {
     // cleanup uploads dir
