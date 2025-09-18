@@ -14,7 +14,7 @@
     "jsx": "preserve",
     "strict": true,
     "baseUrl": ".",
-    "paths": {},
+    "paths": { "@/*": ["./*"] },
     "allowJs": true,
     "skipLibCheck": true,
     "incremental": true,

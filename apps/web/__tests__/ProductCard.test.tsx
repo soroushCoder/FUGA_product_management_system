@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import ProductCard from '../components/ProductCard';
+import ProductCard from '@/components/ProductCard';
 
 const product = { id: 1, name: 'Arcane OST', artistName: 'Riot Games Music', coverUrl: 'https://picsum.photos/seed/x/600/600', createdAt: '', updatedAt: '' };
 

@@ -1,15 +1,20 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { api } from '../lib/api';
-import type { Product } from '../lib/types';
-import ProductForm from '../components/ProductForm';
-import ProductList from '../components/ProductList';
-import { ReloadIcon } from '../components/Icons';
+import { useEffect, useMemo, useState } from 'react';
+import { api } from '@/lib/api';
+import type { Product } from '@/lib/types';
+import ProductForm from '@/components/ProductForm';
+import ProductList from '@/components/ProductList';
+import ProductFilters from '@/components/ProductFilters';
+import { ReloadIcon } from '@/components/Icons';
 
+type SortKey = 'newest' | 'oldest' | 'name';
 
 export default function Page() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [search, setSearch] = useState('');
+  const [artist, setArtist] = useState('all');
+  const [sort, setSort] = useState<SortKey>('newest');
 
   async function reload() {
     const { data } = await api.get<Product[]>('/products');
@@ -17,6 +22,31 @@ export default function Page() {
   }
 
   useEffect(() => { reload(); }, []);
+
+  // unique artists for the dropdown
+  const artists = useMemo(
+    () => Array.from(new Set(products.map(p => p.artistName))).sort((a, b) => a.localeCompare(b)),
+    [products]
+  );
+
+  // filtered + sorted list
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    let list = products.filter(p => {
+      const matchesQ = !q || p.name.toLowerCase().includes(q) || p.artistName.toLowerCase().includes(q);
+      const matchesArtist = artist === 'all' || p.artistName === artist;
+      return matchesQ && matchesArtist;
+    });
+
+    if (sort === 'name') {
+      list = [...list].sort((a, b) => a.name.localeCompare(b.name));
+    } else if (sort === 'oldest') {
+      list = [...list].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    } else {
+      list = [...list].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    }
+    return list;
+  }, [products, search, artist, sort]);
 
   return (
     <div className="container space-y-6">
@@ -35,14 +65,27 @@ export default function Page() {
         </div>
       </header>
 
+  
       <div className="card">
         <h2 className="text-xl font-semibold mb-4">Create Product</h2>
         <ProductForm onCreated={reload} />
       </div>
 
+
+      <ProductFilters
+        search={search} setSearch={setSearch}
+        artist={artist} setArtist={setArtist}
+        sort={sort} setSort={setSort}
+        artists={artists}
+      />
+
+
       <div className="card">
-        <h2 className="text-xl font-semibold mb-4">Products</h2>
-        <ProductList products={products} onChanged={reload} />
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold">Products</h2>
+          <span className="text-sm text-gray-600">{filtered.length} result{filtered.length === 1 ? '' : 's'}</span>
+        </div>
+        <ProductList products={filtered} onChanged={reload} />
       </div>
     </div>
   );

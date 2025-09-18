@@ -1,6 +1,6 @@
 'use client';
 import { FormEvent, useRef, useState } from 'react';
-import { api } from '../lib/api';
+import { api } from '@/lib/api';
 
 export default function ProductForm({ onCreated }: { onCreated: () => void }) {
   const nameRef = useRef<HTMLInputElement>(null);

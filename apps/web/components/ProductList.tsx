@@ -1,6 +1,6 @@
 'use client';
-import { api } from '../lib/api';
-import type { Product } from '../lib/types';
+import { api } from '@/lib/api';
+import type { Product } from '@/lib/types';
 import ProductCard from './ProductCard';
 
 export default function ProductList({

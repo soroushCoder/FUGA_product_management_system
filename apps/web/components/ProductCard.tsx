@@ -2,8 +2,8 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import type { Product } from '../lib/types';
-import { TrashIcon } from '../components/Icons';
+import type { Product } from '@/lib/types';
+import { TrashIcon } from '@/components/Icons';
 
 type Props = {
     product: Product;
