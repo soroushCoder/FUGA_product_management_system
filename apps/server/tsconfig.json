@@ -11,6 +11,6 @@
     "outDir": "dist",
     "resolveJsonModule": true
   },
-  "include": ["src", "test"],
+  "include": ["src", "test", "src/lib/prisma.ts"],
    "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "**/__tests__/**", "test"]
 }
