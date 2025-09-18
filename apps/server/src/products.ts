@@ -25,11 +25,28 @@ function absUrl(filename: string) {
  * @openapi
  * /products:
  *   get:
+ *     tags: [Products]
  *     summary: List products
+ *     description: Returns all products ordered by newest first.
  *     responses:
  *       200:
- *         description: OK
+ *         description: Array of products
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items: { $ref: '#/components/schemas/Product' }
+ *             examples:
+ *               sample:
+ *                 value:
+ *                   - id: 1
+ *                     name: "Arcane: Piltover Nights (OST)"
+ *                     artistName: "Riot Games Music"
+ *                     coverUrl: "http://localhost:3000/uploads/cover1.png"
+ *                     createdAt: "2025-09-01T10:00:00.000Z"
+ *                     updatedAt: "2025-09-01T10:00:00.000Z"
  */
+
 export async function list(_req: Request, res: Response) {
   const items = await prisma.product.findMany({ orderBy: { createdAt: 'desc' } });
   res.json(items);
@@ -39,8 +56,20 @@ export async function list(_req: Request, res: Response) {
  * @openapi
  * /products/{id}:
  *   get:
- *     summary: Get by id
+ *     tags: [Products]
+ *     summary: Get product by id
+ *     parameters:
+ *       - $ref: '#/components/parameters/ProductIdParam'
+ *     responses:
+ *       200:
+ *         description: Product
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Product' }
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
  */
+
 export async function get(req: Request, res: Response) {
   const id = Number(req.params.id);
   const product = await prisma.product.findUnique({ where: { id } });
@@ -52,19 +81,36 @@ export async function get(req: Request, res: Response) {
  * @openapi
  * /products:
  *   post:
- *     summary: Create
+ *     tags: [Products]
+ *     summary: Create a product
+ *     description: Multipart form upload for a new product with cover art.
  *     requestBody:
  *       required: true
  *       content:
  *         multipart/form-data:
- *           schema:
- *             type: object
- *             required: [name, artistName, cover]
- *             properties:
- *               name: { type: string }
- *               artistName: { type: string }
- *               cover: { type: string, format: binary }
+ *           schema: { $ref: '#/components/schemas/NewProductRequest' }
+ *           encoding:
+ *             cover:
+ *               contentType: image/png, image/jpeg
+ *     responses:
+ *       201:
+ *         description: Created
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Product' }
+ *             examples:
+ *               created:
+ *                 value:
+ *                   id: 12
+ *                   name: "Arcane: Piltover Nights (OST)"
+ *                   artistName: Riot Games Music
+ *                   coverUrl: http://localhost:3000/uploads/1694976620000-123.png
+ *                   createdAt: 2025-09-17T12:00:00.000Z
+ *                   updatedAt: 2025-09-17T12:00:00.000Z
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
  */
+
 export async function create(req: Request, res: Response) {
   const { name, artistName } = req.body as { name?: string; artistName?: string };
   const file = (req as any).file as Express.Multer.File | undefined;
@@ -81,8 +127,28 @@ export async function create(req: Request, res: Response) {
  * @openapi
  * /products/{id}:
  *   patch:
- *     summary: Update
+ *     tags: [Products]
+ *     summary: Update a product
+ *     parameters:
+ *       - $ref: '#/components/parameters/ProductIdParam'
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         multipart/form-data:
+ *           schema: { $ref: '#/components/schemas/UpdateProductRequest' }
+ *           encoding:
+ *             cover:
+ *               contentType: image/png, image/jpeg
+ *     responses:
+ *       200:
+ *         description: Updated product
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Product' }
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
  */
+
 export async function update(req: Request, res: Response) {
   const id = Number(req.params.id);
   const exists = await prisma.product.findUnique({ where: { id } });
@@ -103,8 +169,17 @@ export async function update(req: Request, res: Response) {
  * @openapi
  * /products/{id}:
  *   delete:
- *     summary: Delete
+ *     tags: [Products]
+ *     summary: Delete a product
+ *     parameters:
+ *       - $ref: '#/components/parameters/ProductIdParam'
+ *     responses:
+ *       204:
+ *         description: No Content
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
  */
+
 export async function remove(req: Request, res: Response) {
   const id = Number(req.params.id);
   const exists = await prisma.product.findUnique({ where: { id } });
