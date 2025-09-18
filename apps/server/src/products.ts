@@ -1,6 +1,8 @@
 import type { Request, Response } from 'express';
+import fs from 'node:fs/promises';
 import { prisma } from './prisma.js';
 import { CONFIG } from './env.js';
+import { AppError, asyncHandler } from './errors.js';        
 
 /**
  * @openapi
@@ -12,9 +14,22 @@ import { CONFIG } from './env.js';
  *         id: { type: integer }
  *         name: { type: string }
  *         artistName: { type: string }
- *         coverUrl: { type: string }
+ *         coverUrl: { type: string, format: uri }
  *         createdAt: { type: string, format: date-time }
  *         updatedAt: { type: string, format: date-time }
+ *     NewProductRequest:
+ *       type: object
+ *       required: [name, artistName, cover]
+ *       properties:
+ *         name: { type: string }
+ *         artistName: { type: string }
+ *         cover: { type: string, format: binary }
+ *     UpdateProductRequest:
+ *       type: object
+ *       properties:
+ *         name: { type: string }
+ *         artistName: { type: string }
+ *         cover: { type: string, format: binary }
  */
 
 function absUrl(filename: string) {
@@ -46,11 +61,10 @@ function absUrl(filename: string) {
  *                     createdAt: "2025-09-01T10:00:00.000Z"
  *                     updatedAt: "2025-09-01T10:00:00.000Z"
  */
-
-export async function list(_req: Request, res: Response) {
+export const list = asyncHandler(async (_req: Request, res: Response) => {
   const items = await prisma.product.findMany({ orderBy: { createdAt: 'desc' } });
   res.json(items);
-}
+});
 
 /**
  * @openapi
@@ -69,13 +83,13 @@ export async function list(_req: Request, res: Response) {
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
-
-export async function get(req: Request, res: Response) {
-  const id = Number(req.params.id);
+export const get = asyncHandler(async (req: Request, res: Response) => {
+  // id has been zod-validated in middleware; it's a number now
+  const { id } = req.params as unknown as { id: number };
   const product = await prisma.product.findUnique({ where: { id } });
-  if (!product) return res.status(404).json({ message: 'Product not found' });
+  if (!product) throw new AppError(404, 'Product not found');
   res.json(product);
-}
+});
 
 /**
  * @openapi
@@ -91,37 +105,35 @@ export async function get(req: Request, res: Response) {
  *           schema: { $ref: '#/components/schemas/NewProductRequest' }
  *           encoding:
  *             cover:
- *               contentType: image/png, image/jpeg
+ *               contentType: image/png, image/jpeg, image/webp
  *     responses:
  *       201:
  *         description: Created
  *         content:
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Product' }
- *             examples:
- *               created:
- *                 value:
- *                   id: 12
- *                   name: "Arcane: Piltover Nights (OST)"
- *                   artistName: Riot Games Music
- *                   coverUrl: http://localhost:3000/uploads/1694976620000-123.png
- *                   createdAt: 2025-09-17T12:00:00.000Z
- *                   updatedAt: 2025-09-17T12:00:00.000Z
  *       400:
  *         $ref: '#/components/responses/BadRequest'
+ *       422:
+ *         $ref: '#/components/responses/UnprocessableEntity'
  */
-
-export async function create(req: Request, res: Response) {
-  const { name, artistName } = req.body as { name?: string; artistName?: string };
+export const create = asyncHandler(async (req: Request, res: Response) => {
+  // Body fields already validated by zod middleware
+  const { name, artistName } = req.body as { name: string; artistName: string };
   const file = (req as any).file as Express.Multer.File | undefined;
-  if (!name || !artistName) return res.status(400).json({ message: 'name and artistName are required' });
-  if (!file) return res.status(400).json({ message: 'cover is required' });
+  if (!file) throw new AppError(400, 'cover is required');
 
-  const created = await prisma.product.create({
-    data: { name, artistName, coverUrl: absUrl(file.filename) }
-  });
-  res.status(201).json(created);
-}
+  try {
+    const created = await prisma.product.create({
+      data: { name, artistName, coverUrl: absUrl(file.filename) }
+    });
+    res.status(201).json(created);
+  } catch (e) {
+    // if DB failed after writing file, clean up the uploaded file
+    if (file?.path) fs.unlink(file.path).catch(() => {});
+    throw e;
+  }
+});
 
 /**
  * @openapi
@@ -138,7 +150,7 @@ export async function create(req: Request, res: Response) {
  *           schema: { $ref: '#/components/schemas/UpdateProductRequest' }
  *           encoding:
  *             cover:
- *               contentType: image/png, image/jpeg
+ *               contentType: image/png, image/jpeg, image/webp
  *     responses:
  *       200:
  *         description: Updated product
@@ -147,23 +159,34 @@ export async function create(req: Request, res: Response) {
  *             schema: { $ref: '#/components/schemas/Product' }
  *       404:
  *         $ref: '#/components/responses/NotFound'
+ *       422:
+ *         $ref: '#/components/responses/UnprocessableEntity'
  */
-
-export async function update(req: Request, res: Response) {
-  const id = Number(req.params.id);
-  const exists = await prisma.product.findUnique({ where: { id } });
-  if (!exists) return res.status(404).json({ message: 'Product not found' });
-
+export const update = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params as unknown as { id: number };
   const { name, artistName } = req.body as { name?: string; artistName?: string };
   const file = (req as any).file as Express.Multer.File | undefined;
-  const coverUrl = file ? absUrl(file.filename) : undefined;
 
-  const updated = await prisma.product.update({
-    where: { id },
-    data: { name: name ?? undefined, artistName: artistName ?? undefined, coverUrl }
-  });
-  res.json(updated);
-}
+  if (!name && !artistName && !file) {
+    throw new AppError(422, 'No fields provided to update');
+  }
+
+  const data: Record<string, unknown> = {};
+  if (name) data.name = name;
+  if (artistName) data.artistName = artistName;
+  if (file) data.coverUrl = absUrl(file.filename);
+
+  try {
+    const updated = await prisma.product.update({ where: { id }, data });
+    res.json(updated);
+  } catch (e: any) {
+    // Prisma record not found
+    if (e?.code === 'P2025') throw new AppError(404, 'Product not found');
+    // clean up new file if update failed for any reason
+    if (file?.path) fs.unlink(file.path).catch(() => {});
+    throw e;
+  }
+});
 
 /**
  * @openapi
@@ -179,11 +202,13 @@ export async function update(req: Request, res: Response) {
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
-
-export async function remove(req: Request, res: Response) {
-  const id = Number(req.params.id);
-  const exists = await prisma.product.findUnique({ where: { id } });
-  if (!exists) return res.status(404).json({ message: 'Product not found' });
-  await prisma.product.delete({ where: { id } });
+export const remove = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params as unknown as { id: number };
+  try {
+    await prisma.product.delete({ where: { id } });
+  } catch (e: any) {
+    if (e?.code === 'P2025') throw new AppError(404, 'Product not found');
+    throw e;
+  }
   res.status(204).send();
-}
+});
