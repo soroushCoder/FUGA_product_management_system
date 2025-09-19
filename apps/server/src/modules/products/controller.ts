@@ -7,7 +7,7 @@ import {
   updateProduct,
   deleteProduct
 } from './service.js';
-
+type MulterRequest = Request & { file?: Express.Multer.File };
 /**
  * @openapi
  * /products:
@@ -73,8 +73,8 @@ export const get = asyncHandler(async (req: Request, res: Response) => {
  *       422: { $ref: '#/components/responses/UnprocessableEntity' }
  */
 export const create = asyncHandler(async (req: Request, res: Response) => {
-  const { name, artistName } = req.body as { name: string; artistName: string };
-  const file = (req as any).file as Express.Multer.File | undefined;
+   const { name, artistName } = req.body as { name: string; artistName: string };
+  const file = (req as MulterRequest).file;            
   const created = await createProduct({ name, artistName, file });
   res.status(201).json(created);
 });
@@ -107,7 +107,7 @@ export const create = asyncHandler(async (req: Request, res: Response) => {
 export const update = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params as unknown as { id: number };
   const { name, artistName } = req.body as { name?: string; artistName?: string };
-  const file = (req as any).file as Express.Multer.File | undefined;
+  const file = (req as MulterRequest).file;           
   const updated = await updateProduct(id, { name, artistName, file });
   res.json(updated);
 });

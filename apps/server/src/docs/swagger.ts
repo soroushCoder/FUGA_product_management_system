@@ -8,7 +8,7 @@ export const swaggerSpec = swaggerJsdoc({
       version: '1.0.0',
       description:
         'Minimal product management API (FUGA-style). Upload cover art, list products, and manage releases.',
-      contact: { name: 'Your Name' }
+      contact: { name: 'Soroush ebadi' }
     },
     servers: [
       { url: process.env.PUBLIC_BASE_URL || 'http://localhost:3000', description: 'Local' }
@@ -70,6 +70,5 @@ export const swaggerSpec = swaggerJsdoc({
       }
     }
   },
-  // make sure we scan all route files
   apis: ['src/**/*.ts']
 });

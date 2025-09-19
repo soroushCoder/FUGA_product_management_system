@@ -1,4 +1,3 @@
-// apps/server/src/modules/products/service.ts
 import fs from 'node:fs/promises';
 import { prisma } from '../../lib/prisma.js';
 import { CONFIG } from '../../env.js';
