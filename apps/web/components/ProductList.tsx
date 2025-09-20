@@ -1,27 +1,58 @@
 'use client';
-import { api } from '@/lib/api';
-import type { Product } from '@/lib/types';
+
+import * as React from 'react';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import ProductCard from './ProductCard';
+import type { Product } from '@/lib/types';
+import { api } from '@/lib/api';
 
-export default function ProductList({
-  products,
-  onChanged
-}: { products: Product[]; onChanged: () => void }) {
+type Props = {
+  products: Product[];
+  onChanged: () => void; // your existing reload()
+  removeProduct: (id: number) => Promise<void>; // your delete API wrapper
+};
 
-  async function remove(id: number) {
-    if (!confirm('Delete this product?')) return;
-    await api.delete(`/products/${id}`);
-    onChanged();
-  }
+export default function ProductList({ products, onChanged }: Props) {
+  const [confirmOpen, setConfirmOpen] = React.useState(false);
+  const [pendingId, setPendingId] = React.useState<number | null>(null);
+
+  const askDelete = (id: number) => {
+    setPendingId(id);
+    setConfirmOpen(true);
+  };
+
+  const onConfirm = async () => {
+    if (pendingId == null) return;
+    try {
+      await api.delete(`/products/${pendingId}`);
+      onChanged();
+    } finally {
+      setConfirmOpen(false);
+      setPendingId(null);
+    }
+  };
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-      {products.map(p => (
-        <ProductCard key={p.id} product={p} onDelete={remove} />
-      ))}
-      {products.length === 0 && (
-        <div className="text-gray-600">No products yet.</div>
-      )}
-    </div>
+    <>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {products.map((p) => (
+          <ProductCard
+            key={p.id}
+            product={p}
+            onDelete={() => askDelete(p.id)}   // ← open modal
+          />
+        ))}
+      </div>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Delete product?"
+        description="This will permanently remove the product. You can’t undo this."
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={onConfirm}
+        onCancel={() => { setConfirmOpen(false); setPendingId(null); }}
+      />
+    </>
   );
 }

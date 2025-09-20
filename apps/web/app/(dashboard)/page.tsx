@@ -6,7 +6,6 @@ import type { Product } from '@/lib/types';
 import ProductForm from '@/components/ProductForm';
 import ProductList from '@/components/ProductList';
 import ProductFilters from '@/components/ProductFilters';
-import { ReloadIcon } from '@/components/ui/Icons';
 import ProductSkeletonGrid from '@/components/ProductSkeletonGrid';
 import { useDebouncedValue } from '@/lib/useDebouncedValue';
 
