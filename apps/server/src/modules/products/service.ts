@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises';
-import { prisma } from '../../lib/prisma.js';
+import { prismaClient as prisma } from '../../lib/prisma.js';
+
 import { CONFIG } from '../../env.js';
 import { AppError } from '../../middlewares/errors.js';
 

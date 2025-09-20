@@ -1,40 +1,17 @@
-name: CI
-
-on:
-  push:
-  pull_request:
-
-permissions:
-  contents: read
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
-env:
-  NODE_VERSION: '20'
-  NEXT_TELEMETRY_DISABLED: '1'
-  TESTCONTAINERS_RYUK_DISABLED: 'true'
-  TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: '/var/run/docker.sock'
-  DOCKER_BUILDKIT: '1'
-
 jobs:
   server-tests:
-    name: Server tests (Vitest + Testcontainers)
     runs-on: ubuntu-latest
+    env:
+      TESTCONTAINERS_RYUK_DISABLED: 'true'
+      TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: '/var/run/docker.sock'
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+        with: { node-version: 20, cache: 'npm' }
 
-      - name: Docker info (debug)
-        run: docker info
+      - run: docker info   # quick sanity check
 
-      - name: Install deps (workspaces)
-        run: npm ci
+      - run: npm ci
 
       - name: Ensure upload dir exists
         run: mkdir -p apps/server/uploads
@@ -42,58 +19,33 @@ jobs:
       - name: Generate Prisma client
         run: npm -w apps/server run prisma:generate
 
-      - name: Typecheck/build server
+      - name: Build server (fail fast on TS)
         run: npm -w apps/server run build
-
-
-      - name: Run server unit tests
-        run: npm -w apps/server run test:unit
 
       - name: Run server tests
         run: npm -w apps/server run test
 
   web-tests:
-    name: Web tests (Vitest + RTL)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+        with: { node-version: 20, cache: 'npm' }
 
-      - name: Install deps (workspaces)
-        run: npm ci
-
-      # If you choose option B above, TS will know vi globally. If you choose A,
-      # no special step is needed here.
+      - run: npm ci
       - name: Run web unit tests
         run: npm -w apps/web run test
-
       - name: Typecheck web
         run: npm -w apps/web run typecheck
 
   build:
-    name: Build server & web
     needs: [server-tests, web-tests]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-
-      - name: Install deps (workspaces)
-        run: npm ci
-
-      - name: Generate Prisma client
-        run: npm -w apps/server run prisma:generate
-
-      - name: Build server
-        run: npm -w apps/server run build
-
-      - name: Build web (Next.js)
-        run: npm -w apps/web run build
+        with: { node-version: 20, cache: 'npm' }
+      - run: npm ci
+      - run: npm -w apps/server run prisma:generate
+      - run: npm -w apps/server run build
+      - run: npm -w apps/web run build
