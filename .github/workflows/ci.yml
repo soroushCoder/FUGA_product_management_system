@@ -14,8 +14,8 @@ concurrency:
 env:
   NODE_VERSION: '20'
   NEXT_TELEMETRY_DISABLED: '1'
-  # testcontainers: Ryuk can hit perms issues on GH runners
   TESTCONTAINERS_RYUK_DISABLED: 'true'
+  TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: '/var/run/docker.sock'
   DOCKER_BUILDKIT: '1'
 
 jobs:
@@ -30,8 +30,14 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
-      - name: Install dependencies (workspaces)
+      - name: Docker info (debug)
+        run: docker info
+
+      - name: Install deps (workspaces)
         run: npm ci
+
+      - name: Ensure upload dir exists
+        run: mkdir -p apps/server/uploads
 
       - name: Generate Prisma client
         run: npm -w apps/server run prisma:generate
@@ -57,9 +63,11 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
-      - name: Install dependencies (workspaces)
+      - name: Install deps (workspaces)
         run: npm ci
 
+      # If you choose option B above, TS will know vi globally. If you choose A,
+      # no special step is needed here.
       - name: Run web unit tests
         run: npm -w apps/web run test
 
@@ -78,7 +86,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
-      - name: Install dependencies (workspaces)
+      - name: Install deps (workspaces)
         run: npm ci
 
       - name: Generate Prisma client
