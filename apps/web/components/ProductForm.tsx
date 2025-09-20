@@ -1,6 +1,7 @@
 'use client';
+import { createProduct } from '@/lib/api';
 import { FormEvent, useRef, useState } from 'react';
-import { api } from '@/lib/api';
+
 
 export default function ProductForm({ onCreated }: { onCreated: () => void }) {
   const nameRef = useRef<HTMLInputElement>(null);
@@ -14,13 +15,13 @@ export default function ProductForm({ onCreated }: { onCreated: () => void }) {
     if (busy) return;
     setBusy(true); setError(null);
     try {
-      const form = new FormData();
-      if (nameRef.current) form.append('name', nameRef.current.value);
-      if (artistRef.current) form.append('artistName', artistRef.current.value);
       const file = fileRef.current?.files?.[0];
-      if (file) form.append('cover', file);
-
-      await api.post('/products', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+      await createProduct({
+        name: nameRef.current?.value || '',
+        artistName: artistRef.current?.value || '',
+        cover: file || new File([], ''),
+      });
+      // clear form
       if (nameRef.current) nameRef.current.value = '';
       if (artistRef.current) artistRef.current.value = '';
       if (fileRef.current) fileRef.current.value = '';

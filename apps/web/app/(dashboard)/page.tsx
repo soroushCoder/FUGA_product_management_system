@@ -1,13 +1,14 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { api } from '@/lib/api';
+
 import type { Product } from '@/lib/types';
 import ProductForm from '@/components/ProductForm';
 import ProductList from '@/components/ProductList';
 import ProductFilters from '@/components/ProductFilters';
 import ProductSkeletonGrid from '@/components/ProductSkeletonGrid';
 import { useDebouncedValue } from '@/lib/useDebouncedValue';
+import {  getProducts } from '@/lib/api';
 
 
 type SortKey = 'newest' | 'oldest' | 'name';
@@ -26,7 +27,7 @@ export default function Page() {
   async function reload() {
     setLoading(true);
     try {
-      const { data } = await api.get<Product[]>('/products');
+      const data  = await getProducts();
       setProducts(data);
     } finally {
       setLoading(false);
@@ -35,7 +36,6 @@ export default function Page() {
 
   useEffect(() => { reload(); }, []);
 
-  // unique artists for the dropdown
   const artists = useMemo(
     () => Array.from(new Set(products.map(p => p.artistName))).sort((a, b) => a.localeCompare(b)),
     [products]

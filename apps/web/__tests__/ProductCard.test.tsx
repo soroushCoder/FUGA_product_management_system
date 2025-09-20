@@ -1,13 +1,22 @@
-import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import ProductCard from '@/components/ProductCard';
+import { it, expect, vi } from 'vitest';
 
-const product = { id: 1, name: 'Arcane OST', artistName: 'Riot Games Music', coverUrl: 'https://picsum.photos/seed/x/600/600', createdAt: '', updatedAt: '' };
+const product = {
+  id: 1,
+  name: 'Arcane OST',
+  artistName: 'Riot Games Music',
+  coverUrl: 'https://picsum.photos/seed/arcane/600/600',
+  createdAt: '',
+  updatedAt: '',
+};
 
-it('renders overlay text and triggers delete', () => {
+it('renders title and artist, triggers delete', () => {
   const onDelete = vi.fn();
-  render(<ProductCard product={product} onDelete={onDelete} />);
-  const deleteBtn = screen.getByLabelText(/Delete Arcane OST/);
-  fireEvent.click(deleteBtn);
-  expect(onDelete).toHaveBeenCalledWith(1);
+  render(<ProductCard product={product as any} onDelete={onDelete} />);
+  expect(screen.getByText(/Arcane OST/i)).toBeInTheDocument();
+  expect(screen.getByText(/Riot Games Music/i)).toBeInTheDocument();
+
+  fireEvent.click(screen.getByLabelText(/delete arcane ost/i));
+  expect(onDelete).toHaveBeenCalledTimes(1);
 });

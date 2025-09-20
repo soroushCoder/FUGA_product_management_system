@@ -4,12 +4,11 @@ import * as React from 'react';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import ProductCard from './ProductCard';
 import type { Product } from '@/lib/types';
-import { api } from '@/lib/api';
+import { removeProduct } from '@/lib/api';
 
 type Props = {
   products: Product[];
-  onChanged: () => void; // your existing reload()
-  removeProduct: (id: number) => Promise<void>; // your delete API wrapper
+  onChanged: () => void; // called after a successful delete
 };
 
 export default function ProductList({ products, onChanged }: Props) {
@@ -21,14 +20,18 @@ export default function ProductList({ products, onChanged }: Props) {
     setConfirmOpen(true);
   };
 
-  const onConfirm = async () => {
+  const handleCancel = () => {
+    setConfirmOpen(false);
+    setPendingId(null);
+  };
+
+  const handleConfirm = async () => {
     if (pendingId == null) return;
     try {
-      await api.delete(`/products/${pendingId}`);
+      await removeProduct(pendingId);
       onChanged();
     } finally {
-      setConfirmOpen(false);
-      setPendingId(null);
+      handleCancel();
     }
   };
 
@@ -36,11 +39,9 @@ export default function ProductList({ products, onChanged }: Props) {
     <>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {products.map((p) => (
-          <ProductCard
-            key={p.id}
-            product={p}
-            onDelete={() => askDelete(p.id)}   // ← open modal
-          />
+          <article key={p.id} role="article" aria-label={p.name}>
+            <ProductCard product={p} onDelete={() => askDelete(p.id)} />
+          </article>
         ))}
       </div>
 
@@ -50,8 +51,8 @@ export default function ProductList({ products, onChanged }: Props) {
         description="This will permanently remove the product. You can’t undo this."
         confirmText="Delete"
         cancelText="Cancel"
-        onConfirm={onConfirm}
-        onCancel={() => { setConfirmOpen(false); setPendingId(null); }}
+        onConfirm={handleConfirm}
+        onCancel={handleCancel}
       />
     </>
   );
