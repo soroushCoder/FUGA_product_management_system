@@ -14,8 +14,9 @@ concurrency:
 env:
   NODE_VERSION: '20'
   NEXT_TELEMETRY_DISABLED: '1'
-  # testcontainers works on GH runners; disabling Ryuk avoids occasional CI perms issues
+  # testcontainers: Ryuk can hit perms issues on GH runners
   TESTCONTAINERS_RYUK_DISABLED: 'true'
+  DOCKER_BUILDKIT: '1'
 
 jobs:
   server-tests:
@@ -29,11 +30,18 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
-      - name: Install deps (root workspaces)
+      - name: Install dependencies (workspaces)
         run: npm ci
 
-      - name: Typecheck/build server (fast fail on TS errors)
+      - name: Generate Prisma client
+        run: npm -w apps/server run prisma:generate
+
+      - name: Typecheck/build server
         run: npm -w apps/server run build
+
+      # If you separated suites:
+      # - name: Run server unit tests
+      #   run: npm -w apps/server run test:unit
 
       - name: Run server tests
         run: npm -w apps/server run test
@@ -49,7 +57,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
-      - name: Install deps (root workspaces)
+      - name: Install dependencies (workspaces)
         run: npm ci
 
       - name: Run web unit tests
@@ -70,7 +78,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
-      - name: Install deps (root workspaces)
+      - name: Install dependencies (workspaces)
         run: npm ci
 
       - name: Generate Prisma client
