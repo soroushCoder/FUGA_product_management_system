@@ -39,9 +39,9 @@ jobs:
       - name: Typecheck/build server
         run: npm -w apps/server run build
 
-      # If you separated suites:
-      # - name: Run server unit tests
-      #   run: npm -w apps/server run test:unit
+
+      - name: Run server unit tests
+        run: npm -w apps/server run test:unit
 
       - name: Run server tests
         run: npm -w apps/server run test
