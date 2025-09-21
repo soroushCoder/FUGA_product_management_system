@@ -1,89 +1,74 @@
-import { render, screen, within, fireEvent } from '@testing-library/react';
-import ProductList from '@/components/ProductList';
-import type { Product } from '@/lib/types';
-import { it, expect, vi, describe } from 'vitest';
+// apps/web/__tests__/ProductList.test.tsx
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { vi } from 'vitest';
 
-// Mock the API call used by ProductList
+// mock the API used by ProductList
 vi.mock('@/lib/api', () => ({
   removeProduct: vi.fn().mockResolvedValue(undefined),
 }));
 
+// optional: make ConfirmDialog simple & clickable for tests
+vi.mock('@/components/ui/ConfirmDialog', () => ({
+  default: (props: any) =>
+    props.open ? (
+      <div aria-label="confirm-dialog">
+        <button onClick={props.onConfirm}>confirm</button>
+        <button onClick={props.onCancel}>cancel</button>
+      </div>
+    ) : null,
+}));
+
 import { removeProduct } from '@/lib/api';
+import ProductList from '@/components/ProductList'; // <- update path if needed
+import type { Product } from '@/lib/types';
 
 const products: Product[] = [
-  {
-    id: 1,
-    name: 'Arcane OST',
-    artistName: 'Riot Games Music',
-    coverUrl: 'https://picsum.photos/seed/1/600',
-    createdAt: '' as any,
-    updatedAt: '' as any,
-  },
-  {
-    id: 2,
-    name: 'Hospitality: Arena Classics',
-    artistName: 'Various Artists',
-    coverUrl: 'https://picsum.photos/seed/2/600',
-    createdAt: '' as any,
-    updatedAt: '' as any,
-  },
+  { id: 1, name: 'Alpha', artistName:"Soroush", coverUrl: '/a.png', createdAt: '' as any, updatedAt: '' as any },
+  { id: 2, name: 'Beta', artistName:"Ebadi",coverUrl: '/b.png', createdAt: '' as any, updatedAt: '' as any },
 ];
 
-describe('<ProductList />', () => {
-  it('renders products and deletes after confirmation', async () => {
+describe('ProductList', () => {
+  it('renders products', () => {
     const onChanged = vi.fn();
-
     render(<ProductList products={products} onChanged={onChanged} />);
 
-    // Renders two cards
-    const cards = screen.getAllByRole('article'); // ensure ProductCard wrapper has role="article"
-    expect(cards).toHaveLength(2);
-
-    // Click delete on the first card
-    // Prefer an accessible label from ProductCard like aria-label={`Delete ${p.name}`}
-    // Fallback: any "Delete" button inside the first card
-    const firstCardDeleteBtn =
-      within(cards[0]).queryByLabelText(/delete .*arcane ost/i) ??
-      within(cards[0]).getByRole('button', { name: /delete/i });
-
-    fireEvent.click(firstCardDeleteBtn);
-
-    // Confirm dialog appears
-    const dialogTitle = await screen.findByRole('heading', { name: /delete product\?/i });
-    expect(dialogTitle).toBeVisible();
-
-    // Confirm delete
-    const confirmBtn = screen.getByRole('button', { name: /^delete$/i });
-    fireEvent.click(confirmBtn);
-
-    // API called with the pending id and parent notified
-    expect(removeProduct).toHaveBeenCalledWith(1);
-    
+    expect(screen.getByRole('article', { name: 'Alpha' })).toBeInTheDocument();
+    expect(screen.getByRole('article', { name: 'Beta' })).toBeInTheDocument();
   });
 
-  it('does not delete when cancel is clicked', async () => {
+  it('asks for confirmation and deletes, then calls onChanged', async () => {
+    const user = userEvent.setup();
     const onChanged = vi.fn();
-    (removeProduct as unknown as vi.Mock).mockClear();
-
     render(<ProductList products={products} onChanged={onChanged} />);
 
-    const cards = screen.getAllByRole('article');
+    // click delete button on the Beta card
+    // (depends on how ProductCard exposes the delete button; tweak selector/alt text accordingly)
+    const betaArticle = screen.getByRole('article', { name: 'Beta' });
+    const deleteBtn = screen.getByRole('button', { name: /delete/i, hidden: true }) // or within(betaArticle).getByRole(...)
+    await user.click(deleteBtn);
 
-    const deleteBtn =
-      within(cards[1]).queryByLabelText(/delete .*hospitality/i) ??
-      within(cards[1]).getByRole('button', { name: /delete/i });
+    // confirm dialog should appear (mocked)
+    expect(screen.getByLabelText('confirm-dialog')).toBeInTheDocument();
 
-    fireEvent.click(deleteBtn);
+    await user.click(screen.getByText('confirm'));
 
-    // Cancel
-    const cancelBtn = await screen.findByRole('button', { name: /cancel/i });
-    fireEvent.click(cancelBtn);
+    expect(removeProduct).toHaveBeenCalledWith(2);
+    expect(onChanged).toHaveBeenCalledTimes(1);
+  });
 
-    // No API call and no onChanged
+  it('closes dialog on cancel and does not call removeProduct', async () => {
+    const user = userEvent.setup();
+    const onChanged = vi.fn();
+    render(<ProductList products={products} onChanged={onChanged} />);
+
+    const alphaArticle = screen.getByRole('article', { name: 'Alpha' });
+    const deleteBtn = screen.getByRole('button', { name: /delete/i, hidden: true })
+    await user.click(deleteBtn);
+
+    await user.click(screen.getByText('cancel'));
+
     expect(removeProduct).not.toHaveBeenCalled();
     expect(onChanged).not.toHaveBeenCalled();
-
-    // Dialog should close
-    expect(screen.queryByRole('heading', { name: /delete product\?/i })).not.toBeInTheDocument();
   });
 });

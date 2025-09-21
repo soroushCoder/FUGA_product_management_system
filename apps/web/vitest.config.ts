@@ -6,7 +6,7 @@ const r = (p: string) => path.resolve(__dirname, p);
 export default defineConfig({
   test: {
     environment: 'jsdom',
-    setupFiles: ['./vitest.setup.ts'], // keep your existing setup file
+    setupFiles: ['./vitest.setup.ts'], 
     globals: true,
     css: true,
   },

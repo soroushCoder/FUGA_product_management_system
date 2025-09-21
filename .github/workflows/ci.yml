@@ -27,6 +27,7 @@ jobs:
       TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: '/var/run/docker.sock'
       NODE_ENV: test
       PUBLIC_BASE_URL: 'http://localhost:3000'
+      DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/placeholder?schema=public' 
     steps:
       - uses: actions/checkout@v4
 
