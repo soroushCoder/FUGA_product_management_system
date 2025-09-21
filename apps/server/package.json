@@ -12,7 +12,9 @@
     "prisma:dbpush": "prisma db push",
     "prisma:seed": "prisma db seed",
     "test": "vitest --run",
-    "test:unit": "vitest run --dir test/unit --reporter=dot"
+    "test:unit": "vitest run --dir test/unit --reporter=dot",
+    "test:integration": "vitest run --dir test/integration --reporter=dot",
+    "test:e2e": "vitest run --dir test/e2e --reporter=dot"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
