@@ -1,17 +1,21 @@
+// lib/prisma.ts
 import { PrismaClient } from '@prisma/client';
 
-let prisma: PrismaClient | undefined;
+let prisma: PrismaClient | null = null;
 
 export function getPrisma() {
   if (!prisma) {
-    // Pass the URL explicitly so tests don't rely on process.env timing
-    prisma = new PrismaClient({
-      datasources: { db: { url: process.env.DATABASE_URL } },
-    });
+    const url = process.env.DATABASE_URL;
+    if (!url) throw new Error('DATABASE_URL is required for DB access');
+    prisma = new PrismaClient({ datasources: { db: { url } } });
   }
   return prisma;
 }
 
-// convenience named export used across code
-export const prismaClient = getPrisma();
-export { PrismaClient }; // if you need the class elsewhere
+// handy for tests if you ever need to re-read env and rebuild
+export async function resetPrisma() {
+  if (prisma) await prisma.$disconnect();
+  prisma = null;
+}
+
+export { PrismaClient };

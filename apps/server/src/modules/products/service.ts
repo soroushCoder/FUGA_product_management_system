@@ -1,5 +1,5 @@
 import fs from 'node:fs/promises';
-import { prismaClient as prisma } from '../../lib/prisma.js';
+import { getPrisma } from '../../lib/prisma.js';
 
 import { CONFIG } from '../../env.js';
 import { AppError } from '../../middlewares/errors.js';
@@ -8,11 +8,14 @@ function absUrl(filename: string) {
   return `${CONFIG.PUBLIC_BASE_URL}/uploads/${filename}`;
 }
 
+
 export async function listProducts() {
+  const prisma = getPrisma();
   return prisma.product.findMany({ orderBy: { createdAt: 'desc' } });
 }
 
 export async function getProduct(id: number) {
+  const prisma = getPrisma();
   const product = await prisma.product.findUnique({ where: { id } });
   if (!product) throw new AppError(404, 'Product not found');
   return product;
@@ -24,6 +27,7 @@ export async function createProduct(args: {
   file?: Express.Multer.File;
 }) {
   const { name, artistName, file } = args;
+  const prisma = getPrisma();
   if (!file) throw new AppError(400, 'cover is required');
 
   try {
@@ -41,6 +45,7 @@ export async function updateProduct(
   args: { name?: string; artistName?: string; file?: Express.Multer.File }
 ) {
   const { name, artistName, file } = args;
+  const prisma = getPrisma();
 
   const data: Record<string, unknown> = {};
   if (name) data.name = name;
@@ -60,6 +65,7 @@ export async function updateProduct(
 }
 
 export async function deleteProduct(id: number) {
+  const prisma = getPrisma();
   try {
     await prisma.product.delete({ where: { id } });
   } catch (e: any) {
