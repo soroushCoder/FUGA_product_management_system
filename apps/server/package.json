@@ -9,8 +9,12 @@
     "start": "node dist/index.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev --name init",
+    "prisma:dbpush": "prisma db push",
     "prisma:seed": "prisma db seed",
-    "test": "vitest --run"
+    "test": "vitest --run",
+    "test:unit": "vitest run --dir test/unit --reporter=dot",
+    "test:integration": "vitest run --dir test/integration --reporter=dot",
+    "test:e2e": "vitest run --dir test/e2e --reporter=dot"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -26,6 +30,7 @@
     "swagger-ui-express": "^5.0.0"
   },
   "devDependencies": {
+    "@testcontainers/postgresql": "^11.6.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^4.17.21",
     "@types/morgan": "^1.9.9",

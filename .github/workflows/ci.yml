@@ -14,40 +14,74 @@ concurrency:
 env:
   NODE_VERSION: '20'
   NEXT_TELEMETRY_DISABLED: '1'
-  # testcontainers works on GH runners; disabling Ryuk avoids occasional CI perms issues
+  # Testcontainers runs fine on GH runners; disabling Ryuk avoids rare perms issues.
   TESTCONTAINERS_RYUK_DISABLED: 'true'
+  # Used by server service.ts for absolute image URLs
+  PUBLIC_BASE_URL: 'http://localhost:3000'
 
 jobs:
   server-tests:
-    name: Server tests (Vitest + Testcontainers)
     runs-on: ubuntu-latest
+    env:
+      TESTCONTAINERS_RYUK_DISABLED: 'true'
+      TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: '/var/run/docker.sock'
+      NODE_ENV: test
+      PUBLIC_BASE_URL: 'http://localhost:3000'
+      DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/placeholder?schema=public' 
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
+          # ensure cache keys invalidate when server deps change
+          cache-dependency-path: |
+            package-lock.json
+            apps/server/package-lock.json
+
+      - name: Docker sanity check
+        run: docker info
 
       - name: Install deps (root workspaces)
         run: npm ci
 
-      - name: Typecheck/build server (fast fail on TS errors)
+      - name: Ensure upload dir exists
+        run: mkdir -p apps/server/uploads
+
+      - name: Generate Prisma client
+        run: npm -w apps/server run prisma:generate
+
+      - name: Build server (fail fast on TS)
         run: npm -w apps/server run build
 
-      - name: Run server tests
-        run: npm -w apps/server run test
+      # Run suites separately so failures are clearer in logs
+      - name: Run server unit tests
+        run: npm -w apps/server run test:unit
+
+      - name: Run server e2e tests
+        run: npm -w apps/server run test:e2e
+
+      - name: Run server integration tests (Testcontainers)
+        run: npm -w apps/server run test:integration
 
   web-tests:
-    name: Web tests (Vitest + RTL)
     runs-on: ubuntu-latest
+    env:
+      NODE_ENV: test
+      NEXT_TELEMETRY_DISABLED: '1'
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            apps/web/package-lock.json
 
       - name: Install deps (root workspaces)
         run: npm ci
@@ -59,25 +93,25 @@ jobs:
         run: npm -w apps/web run typecheck
 
   build:
-    name: Build server & web
     needs: [server-tests, web-tests]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
+          cache-dependency-path: package-lock.json
 
       - name: Install deps (root workspaces)
         run: npm ci
 
-      - name: Generate Prisma client
-        run: npm -w apps/server run prisma:generate
-
       - name: Build server
-        run: npm -w apps/server run build
+        run: |
+          npm -w apps/server run prisma:generate
+          npm -w apps/server run build
 
-      - name: Build web (Next.js)
+      - name: Build web
         run: npm -w apps/web run build

@@ -2,8 +2,8 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import type { Product } from '../lib/types';
-import { TrashIcon } from '../components/Icons';
+import type { Product } from '@/lib/types';
+import { TrashIcon } from '@/components/ui/Icons';
 
 type Props = {
     product: Product;
@@ -19,6 +19,8 @@ export default function ProductCard({ product, onDelete }: Props) {
                     src={product.coverUrl}
                     alt={product.name}
                     fill
+                    loading="lazy"        
+                    decoding="async" 
                     sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
                     className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
                     priority={false}
@@ -38,7 +40,7 @@ export default function ProductCard({ product, onDelete }: Props) {
                     </h3>
                     <p className="text-sm opacity-90">{product.artistName}</p>
                     <span className="mt-2 inline-flex text-sm items-center gap-1 opacity-90 group-hover:opacity-100">
-                        En savoir plus <span aria-hidden>→</span>
+                        More <span aria-hidden>→</span>
                     </span>
                 </div>
             </Link>
