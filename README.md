@@ -146,7 +146,7 @@ npm -w apps/server run prisma:dbpush
 npm -w apps/server run prisma:migrate:dev
 ```
 
-Seed sample data:
+Seed sample data (50 curated products):
 
 ```bash
 npm -w apps/server run prisma:seed
