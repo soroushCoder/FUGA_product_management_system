@@ -1,8 +1,9 @@
 # FUGA Product Management System
 
 A minimal monorepo that showcases a **TypeScript** stack for a tiny “music products” CRUD:
-- **Server**: Express + Prisma (PostgreSQL) + Multer uploads + Zod validation + Swagger/OpenAPI, tested with **Vitest** and **Testcontainers**.
-- **Web**: Next.js App Router + React 18 + Tailwind + RTL/Vitest. Includes filter + search (debounced), lazy‑loaded images, skeleton loading, and a confirm‑delete modal.
+
+- **Server**: Express + Prisma (PostgreSQL) + Multer uploads + Zod validation + Swagger/OpenAPI — tested with **Vitest** and **Testcontainers**.
+- **Web**: Next.js App Router + React 18 + Tailwind — tested with **RTL/Vitest**.
 - **Shared**: Zod schemas and types consumed by **both** server and web.
 
 ---
@@ -14,7 +15,7 @@ A minimal monorepo that showcases a **TypeScript** stack for a tiny “music pro
 - **DB**: PostgreSQL (local or containerized by Testcontainers for tests)
 - **Web**: Next.js 14 (App Router), React, Tailwind
 - **Tests**: Vitest, React Testing Library, Testcontainers
-- **CI**: GitHub Actions (matrixed jobs for server/web + build gate)
+- **CI**: GitHub Actions (separate jobs for server/web + build gate)
 
 ---
 
@@ -29,7 +30,7 @@ FUGA_PRODUCT_MANAGEMENT_SYSTEM/
 │  │  │  └─ migrations/
 │  │  └─ src/
 │  │     ├─ lib/
-│  │     │  └─ prisma.ts                 # creates PrismaClient (reads DATABASE_URL)
+│  │     │  └─ prisma.ts                 # Prisma client (reads DATABASE_URL when used)
 │  │     ├─ middlewares/
 │  │     │  ├─ errors.ts                 # AppError, errorHandler, asyncHandler
 │  │     │  └─ validate.ts               # zod-powered validate(schema, source)
@@ -37,7 +38,7 @@ FUGA_PRODUCT_MANAGEMENT_SYSTEM/
 │  │     │  └─ products/
 │  │     │     ├─ controller.ts          # thin HTTP layer
 │  │     │     ├─ router.ts              # express.Router wiring + middleware
-│  │     │     └─ service.ts             # business logic (only Prisma here)
+│  │     │     └─ service.ts             # business logic (Prisma + file ops)
 │  │     ├─ docs/
 │  │     │  └─ swagger.ts                # swagger spec + components
 │  │     ├─ upload.ts                    # Multer (size/type checks), /uploads static
@@ -49,7 +50,10 @@ FUGA_PRODUCT_MANAGEMENT_SYSTEM/
 │  │     │  ├─ errors.handler.test.ts
 │  │     │  ├─ validate.middleware.test.ts
 │  │     │  └─ products.service.test.ts  # prisma mocked (no DB)
-│  │     └─ products.int.test.ts         # full e2e with Testcontainers PG
+│  │     ├─ e2e/
+│  │     │  └─ basic.e2e.test.ts         # /health + /openapi.json
+│  │     └─ integration/
+│  │        └─ products.int.test.ts      # Testcontainers PostgreSQL
 │  │
 │  └─ web/
 │     ├─ app/
@@ -67,8 +71,8 @@ FUGA_PRODUCT_MANAGEMENT_SYSTEM/
 │     │  └─ ProductSkeletonGrid.tsx
 │     ├─ lib/
 │     │  ├─ api.ts                       # fetch wrappers (getProducts, removeProduct, ...)
-│     │  ├─ types.ts                     # shared client types
-│     │  └─ useDebouncedValue.ts         # small debounce hook
+│     │  ├─ types.ts                     # shared client types (Product, etc.)
+│     │  └─ useDebouncedValue.ts         # debounce hook
 │     └─ __tests__/                      # RTL/Vitest tests
 │
 ├─ packages/
@@ -87,7 +91,7 @@ FUGA_PRODUCT_MANAGEMENT_SYSTEM/
 - **Node.js 20+**
 - **npm** (bundled with Node 20)
 - **PostgreSQL** (local) for manual running; **not required** for unit tests.
-- **ImageMagick**/**libvips**: *not required* (Next.js `next/image` uses the built-in loader).
+- **Docker** (for Testcontainers in integration tests on CI/local)
 
 ---
 
@@ -97,7 +101,7 @@ Create an `.env` at repo root **and** in `apps/server` if you prefer separation.
 
 ```ini
 # apps/server/.env
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/fuga_dev"
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/fuga_dev?schema=public"
 PUBLIC_BASE_URL="http://localhost:3000"
 UPLOAD_DIR="uploads"
 
@@ -120,7 +124,7 @@ npm ci
 
 This installs workspace deps for `apps/server`, `apps/web`, and `packages/shared`.
 
-Generate Prisma client once (the CI and tests do this as needed too):
+Generate Prisma client once (CI and tests also generate as needed):
 
 ```bash
 npm -w apps/server run prisma:generate
@@ -130,10 +134,10 @@ npm -w apps/server run prisma:generate
 
 ## Database & Prisma
 
-Apply migrations (local dev DB):
+Apply schema (local dev DB):
 
 ```bash
-# create DB schema and generate client
+# generate client
 npm -w apps/server run prisma:generate
 
 # push schema (dev only) or run migrations
@@ -142,7 +146,7 @@ npm -w apps/server run prisma:dbpush
 npm -w apps/server run prisma:migrate:dev
 ```
 
-Seed sample data (50 curated products):
+Seed sample data:
 
 ```bash
 npm -w apps/server run prisma:seed
@@ -158,7 +162,7 @@ npm -w apps/server run prisma:seed
 npm -w apps/server run dev
 ```
 
-- REST API is served on `http://localhost:3000`.
+- REST API: `http://localhost:3000`
 - Swagger UI: `http://localhost:3000/api`
 - OpenAPI JSON: `http://localhost:3000/openapi.json`
 - Static uploads: `http://localhost:3000/uploads/*`
@@ -188,7 +192,7 @@ npm -w apps/web run dev
 ### Validation & Errors
 
 - Request payloads validated via **Zod** (from `@fuga/shared`).  
-- Custom `AppError(status, message, details)` bubbles to a centralized `errorHandler`:
+- Centralized `errorHandler` converts:
   - 422: Zod validation failures
   - 400: bad upload / unsupported mime / missing cover
   - 404: not found (maps Prisma P2025)
@@ -202,7 +206,6 @@ npm -w apps/web run dev
 - Product grid with **filters** and **search** (client-side, debounced input).
 - **Lazy-loaded** images (`next/image`) + **skeleton** grid while loading.
 - Confirm‑delete **modal** (`components/ui/ConfirmDialog.tsx`).
-- Friendly `error.tsx` for route-level error handling.
 - Path alias `@/*` configured via `apps/web/tsconfig.json`.
 
 ---
@@ -211,27 +214,71 @@ npm -w apps/web run dev
 
 ### Server
 
-- **Unit** (`apps/server/test/unit/*`): Prisma is **mocked** via `vi.mock('../../src/lib/prisma')`.
-- **Integration** (`apps/server/test/products.int.test.ts`): full E2E using **Testcontainers** PostgreSQL.
-- Run all server tests:
-
-```bash
-npm -w apps/server run test
+**Layout**
 ```
+apps/server/test/
+  unit/
+    errors.handler.test.ts
+    validate.middleware.test.ts
+    products.service.test.ts
+  e2e/
+    basic.e2e.test.ts
+  integration/
+    products.int.test.ts
+```
+
+**Commands**
+```bash
+# from repo root
+npm -w apps/server run test:unit
+npm -w apps/server run test:e2e
+npm -w apps/server run test:integration
+npm -w apps/server test                # runs all
+```
+
+**Notes**
+- Unit tests mock Prisma: `vi.mock('../../src/lib/prisma')`.
+- E2E tests do **not** hit the DB; CI provides a placeholder `DATABASE_URL` to allow Prisma client construction.
+- Integration tests start Postgres with **Testcontainers**, set `process.env.DATABASE_URL` **before** importing the app, run `prisma db push` against the container DB, and then hit endpoints via Supertest.
 
 ### Web
 
-- **Unit/Component** tests with **Vitest + React Testing Library** in `apps/web/__tests__`.
-
-```bash
-npm -w apps/web run test
+**Config**
+```ts
+// apps/web/vitest.config.ts
+import { defineConfig } from 'vitest/config';
+export default defineConfig({
+  test: { environment: 'jsdom', setupFiles: ['./vitest.setup.ts'], globals: true, css: true },
+  resolve: { alias: { '@': './' } }
+});
 ```
 
-### Type Checking
+```ts
+// apps/web/vitest.setup.ts
+import '@testing-library/jest-dom';
+```
 
+```json
+// apps/web/tsconfig.json (snippet)
+{
+  "compilerOptions": {
+    "types": ["vitest/globals", "node"],
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "jsx": "preserve"
+  }
+}
+```
+
+**Commands**
 ```bash
-npm -w apps/server run typecheck
+npm -w apps/web run test
 npm -w apps/web run typecheck
+```
+
+**Tip**
+If TypeScript complains about `vi` in a specific test during `tsc --noEmit`, add:
+```ts
+import { vi } from 'vitest';
 ```
 
 ---
@@ -240,20 +287,25 @@ npm -w apps/web run typecheck
 
 Workflow: `.github/workflows/ci.yml`
 
-- **server-tests**: install → build → run Vitest (unit + e2e with Testcontainers).
-- **web-tests**: install → run Vitest + typecheck.
+- **server-tests**: install → build → run `test:unit`, `test:e2e`, and `test:integration` (Testcontainers).  
+  Sets:
+  ```yaml
+  PUBLIC_BASE_URL: http://localhost:3000
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/placeholder?schema=public
+  TESTCONTAINERS_RYUK_DISABLED: true
+  TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: /var/run/docker.sock
+  ```
+- **web-tests**: install → run Vitest + `tsc --noEmit`.
 - **build**: requires both test jobs to pass; builds server & web.
-
-> The CI sets `TESTCONTAINERS_RYUK_DISABLED=true` for stability on GH runners.
 
 ---
 
 ## Dev Notes & Conventions
 
-- Keep **services** pure (only Prisma/file ops) and keep **controllers** thin.
-- Uploads go to `/uploads` (served statically). Absolute `coverUrl` built from `PUBLIC_BASE_URL`.
-- Shared runtime validation is in `packages/shared` (Zod). Import the same schemas both ends.
-- Prefer **named exports** over default for testability.
+- Keep **services** pure (Prisma + file ops) and **controllers** thin.
+- Uploads go to `/uploads` (served statically). Absolute `coverUrl` uses `PUBLIC_BASE_URL`.
+- Shared runtime validation lives in `packages/shared` (Zod). Import the same schemas on both ends.
+- Prefer **named exports** for testability.
 
 ---
 
@@ -275,23 +327,21 @@ npm -w apps/web run dev
 # Tests
 npm -w apps/server run test
 npm -w apps/web run test
+npm -w apps/web run typecheck
 ```
 
 ---
 
 ## Troubleshooting
 
-- **Prisma “Invalid value undefined for datasource…”**  
-  Ensure `DATABASE_URL` is set for dev and that the tests or CI pass the URL (e2e uses Testcontainers).
+- **Prisma “Invalid value undefined for datasource …”**  
+  Ensure `DATABASE_URL` is set for dev. In CI, e2e uses a placeholder URL; integration tests set the container URL before importing the app.
 
-- **Next.js image fills entire page**  
-  Ensure a constrained parent (e.g., `relative` + `aspect-square`) around `<Image fill />`. Use `object-cover` or `object-contain` classes as needed.
+- **Next.js `<Image>` quirks in tests**  
+  Mock `next/image` to a plain `img` in Vitest.
 
 - **Vitest “Cannot find namespace 'vi'” in CI**  
-  Confirm `apps/web/tsconfig.json` includes:
-  ```json
-  { "compilerOptions": { "types": ["vitest/globals"] } }
-  ```
+  Ensure `apps/web/tsconfig.json` includes: `"types": ["vitest/globals"]`. For one-off files, `import { vi } from 'vitest'`.
 
 ---
 
