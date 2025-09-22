@@ -1,4 +1,3 @@
-// apps/server/src/modules/products/router.ts
 import { Router } from 'express';
 import { upload } from '../../middlewares/upload';
 import { validate, Schemas } from '../../middlewares/validate.js';

@@ -8,7 +8,7 @@ import { removeProduct } from '@/lib/api';
 
 type Props = {
   products: Product[];
-  onChanged: () => void; // called after a successful delete
+  onChanged: () => void; 
 };
 
 export default function ProductList({ products, onChanged }: Props) {

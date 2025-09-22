@@ -2,7 +2,7 @@
 
 A minimal monorepo that showcases a **TypeScript** stack for a tiny “music products” CRUD:
 
-- **Server**: Express + Prisma (PostgreSQL) + Multer uploads + Zod validation + Swagger/OpenAPI — tested with **Vitest** and **Testcontainers**.
+- **Server**: Express + Prisma (PostgreSQL) + Multer uploads + Zod validation + Swagger/OpenAPI — tested with **Vitest** (+ Testcontainers for integration).
 - **Web**: Next.js App Router + React 18 + Tailwind — tested with **RTL/Vitest**.
 - **Shared**: Zod schemas and types consumed by **both** server and web.
 
@@ -30,7 +30,7 @@ FUGA_PRODUCT_MANAGEMENT_SYSTEM/
 │  │  │  └─ migrations/
 │  │  └─ src/
 │  │     ├─ lib/
-│  │     │  └─ prisma.ts                 # Prisma client (reads DATABASE_URL when used)
+│  │     │  └─ prisma.ts                 # Prisma client (lazy, reads DATABASE_URL when used)
 │  │     ├─ middlewares/
 │  │     │  ├─ errors.ts                 # AppError, errorHandler, asyncHandler
 │  │     │  └─ validate.ts               # zod-powered validate(schema, source)
@@ -81,7 +81,8 @@ FUGA_PRODUCT_MANAGEMENT_SYSTEM/
 │        ├─ index.ts                     # exports zod schemas/types
 │        └─ product.ts                   # ProductCreateSchema, UpdateSchema, IdParamSchema
 │
-└─ .github/workflows/ci.yml              # CI: server tests, web tests, and build gate
+├─ .github/workflows/ci.yml              # CI: server tests, web tests, and build gate
+└─ package.json (root)                   # workspace scripts (dev, build, test, typecheck)
 ```
 
 ---
@@ -109,7 +110,7 @@ UPLOAD_DIR="uploads"
 NEXT_PUBLIC_API_URL="http://localhost:3000"
 ```
 
-> CI and integration tests set their own ephemeral DB via **Testcontainers**.
+> CI and integration tests set their own ephemeral DB via **Testcontainers**.  
 > `PUBLIC_BASE_URL` is used to create absolute `coverUrl` for uploaded files.
 
 ---
@@ -130,17 +131,50 @@ Generate Prisma client once (CI and tests also generate as needed):
 npm -w apps/server run prisma:generate
 ```
 
+> The root `postinstall` also runs `prisma:generate` defensively:  
+> `"postinstall": "npm -w apps/server run prisma:generate || true"`
+
 ---
 
-## Database & Prisma
+## Running Locally (1 command)
 
-Apply schema (local dev DB):
+Thanks to the **root** `package.json`:
+
+```json
+{
+  "scripts": {
+    "dev": "concurrently -n server,web -c blue,green \\"npm -w apps/server run dev\\" \\"npm -w apps/web run dev\\"",
+    "build": "npm -w apps/server run build && npm -w apps/web run build",
+    "typecheck": "npm -w apps/server run typecheck && npm -w apps/web run typecheck",
+    "test": "npm -w apps/server run test && npm -w apps/web run test",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier -w .",
+    "format:check": "prettier -c ."
+  }
+}
+```
+
+Run both apps together:
 
 ```bash
-# generate client
-npm -w apps/server run prisma:generate
+npm run dev
+```
 
-# push schema (dev only) or run migrations
+- **Server** runs on **http://localhost:3000**
+  - Swagger UI: `http://localhost:3000/api`
+  - OpenAPI JSON: `http://localhost:3000/openapi.json`
+  - Static uploads: `http://localhost:3000/uploads/*`
+- **Web** runs on **http://localhost:3001** (make sure `apps/web` dev script uses `next dev -p 3001`)
+
+---
+
+## Database & Prisma (local dev)
+
+Apply schema:
+
+```bash
+npm -w apps/server run prisma:generate
 npm -w apps/server run prisma:dbpush
 # or
 npm -w apps/server run prisma:migrate:dev
@@ -154,40 +188,14 @@ npm -w apps/server run prisma:seed
 
 ---
 
-## Running Locally
-
-**Server** (port 3000):
-
-```bash
-npm -w apps/server run dev
-```
-
-- REST API: `http://localhost:3000`
-- Swagger UI: `http://localhost:3000/api`
-- OpenAPI JSON: `http://localhost:3000/openapi.json`
-- Static uploads: `http://localhost:3000/uploads/*`
-
-**Web** (port 3001):
-
-```bash
-npm -w apps/web run dev
-```
-
-- Dashboard: `http://localhost:3001/(dashboard)`
-- Product details: `http://localhost:3001/(dashboard)/products/[id]`
-
-> Tip: keep both servers running in two terminals.
-
----
-
 ## API Summary
 
-- `GET   /health` – simple probe  
-- `GET   /products` – list products (newest first)  
-- `GET   /products/:id` – get a product by id  
-- `POST  /products` – **multipart/form-data** (`name`, `artistName`, `cover`)  
-- `PATCH /products/:id` – **multipart**; optional fields (`name`, `artistName`, `cover`)  
-- `DELETE /products/:id` – delete by id
+- `GET   /health` — simple probe  
+- `GET   /products` — list products (newest first)  
+- `GET   /products/:id` — get a product by id  
+- `POST  /products` — **multipart/form-data** (`name`, `artistName`, `cover`)  
+- `PATCH /products/:id` — **multipart**; optional fields (`name`, `artistName`, `cover`)  
+- `DELETE /products/:id` — delete by id
 
 ### Validation & Errors
 
@@ -205,7 +213,7 @@ npm -w apps/web run dev
 
 - Product grid with **filters** and **search** (client-side, debounced input).
 - **Lazy-loaded** images (`next/image`) + **skeleton** grid while loading.
-- Confirm‑delete **modal** (`components/ui/ConfirmDialog.tsx`).
+- Confirm-delete **modal** (`components/ui/ConfirmDialog.tsx`).
 - Path alias `@/*` configured via `apps/web/tsconfig.json`.
 
 ---
@@ -229,11 +237,10 @@ apps/server/test/
 
 **Commands**
 ```bash
-# from repo root
 npm -w apps/server run test:unit
 npm -w apps/server run test:e2e
 npm -w apps/server run test:integration
-npm -w apps/server test                # runs all
+npm -w apps/server run test                # runs all
 ```
 
 **Notes**
@@ -243,43 +250,13 @@ npm -w apps/server test                # runs all
 
 ### Web
 
-**Config**
-```ts
-// apps/web/vitest.config.ts
-import { defineConfig } from 'vitest/config';
-export default defineConfig({
-  test: { environment: 'jsdom', setupFiles: ['./vitest.setup.ts'], globals: true, css: true },
-  resolve: { alias: { '@': './' } }
-});
-```
-
-```ts
-// apps/web/vitest.setup.ts
-import '@testing-library/jest-dom';
-```
-
-```json
-// apps/web/tsconfig.json (snippet)
-{
-  "compilerOptions": {
-    "types": ["vitest/globals", "node"],
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
-    "jsx": "preserve"
-  }
-}
-```
-
 **Commands**
 ```bash
-npm -w apps/web run test
-npm -w apps/web run typecheck
+npm -w apps/web run test          # Vitest + RTL
+npm -w apps/web run typecheck     # tsc --noEmit
 ```
 
-**Tip**
-If TypeScript complains about `vi` in a specific test during `tsc --noEmit`, add:
-```ts
-import { vi } from 'vitest';
-```
+Vitest config resolves `@/*` aliases and uses `jsdom`. In tests, mock `next/image` to an `<img>` for stability.
 
 ---
 
@@ -287,15 +264,14 @@ import { vi } from 'vitest';
 
 Workflow: `.github/workflows/ci.yml`
 
-- **server-tests**: install → build → run `test:unit`, `test:e2e`, and `test:integration` (Testcontainers).  
-  Sets:
+- **server-tests**: install → build → run tests (unit + integration with Testcontainers).  
+  Typical env injected:
   ```yaml
   PUBLIC_BASE_URL: http://localhost:3000
-  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/placeholder?schema=public
   TESTCONTAINERS_RYUK_DISABLED: true
   TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: /var/run/docker.sock
   ```
-- **web-tests**: install → run Vitest + `tsc --noEmit`.
+- **web-tests**: install → run Vitest + typecheck.
 - **build**: requires both test jobs to pass; builds server & web.
 
 ---
@@ -309,36 +285,13 @@ Workflow: `.github/workflows/ci.yml`
 
 ---
 
-## Common Scripts
-
-From repo root:
-
-```bash
-# Prisma
-npm -w apps/server run prisma:generate
-npm -w apps/server run prisma:dbpush
-npm -w apps/server run prisma:migrate:dev
-npm -w apps/server run prisma:seed
-
-# Dev
-npm -w apps/server run dev
-npm -w apps/web run dev
-
-# Tests
-npm -w apps/server run test
-npm -w apps/web run test
-npm -w apps/web run typecheck
-```
-
----
-
 ## Troubleshooting
 
 - **Prisma “Invalid value undefined for datasource …”**  
   Ensure `DATABASE_URL` is set for dev. In CI, e2e uses a placeholder URL; integration tests set the container URL before importing the app.
 
-- **Next.js `<Image>` quirks in tests**  
-  Mock `next/image` to a plain `img` in Vitest.
+- **Next.js `<Image>` appears full screen**  
+  Wrap with a sized container (e.g., `relative aspect-square`) and use `fill` + `object-cover`/`object-contain`.
 
 - **Vitest “Cannot find namespace 'vi'” in CI**  
   Ensure `apps/web/tsconfig.json` includes: `"types": ["vitest/globals"]`. For one-off files, `import { vi } from 'vitest'`.
