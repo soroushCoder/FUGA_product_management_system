@@ -2,9 +2,55 @@
 
 A minimal monorepo that showcases a **TypeScript** stack for a tiny “music products” CRUD:
 
-- **Server**: Express + Prisma (PostgreSQL) + Multer uploads + Zod validation + Swagger/OpenAPI — tested with **Vitest** and **Testcontainers**.
+- **Server**: Express + Prisma (PostgreSQL) + Multer uploads + Zod validation + Swagger/OpenAPI — tested with **Vitest** (+ Testcontainers for integration).
 - **Web**: Next.js App Router + React 18 + Tailwind — tested with **RTL/Vitest**.
 - **Shared**: Zod schemas and types consumed by **both** server and web.
+
+---
+
+## TL;DR — Docker vs `npm run dev`
+
+- **Docker (Postgres)** is used to **run a database** (either your own container or one spun up temporarily by **Testcontainers** during integration tests).
+- **`npm run dev`** only starts the **API** and the **Next.js** dev servers.  
+  It **does not** start Postgres for you — you must have a reachable DB at `DATABASE_URL`.
+
+### Common ways to have a DB running
+
+**Option A — Start a Postgres container yourself (recommended for dev):**
+```bash
+# Using Docker Desktop
+docker run --name fuga-pg -e POSTGRES_PASSWORD=postgres -p 5432:5432 -d postgres:16
+
+# then configure apps/server/.env
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/fuga_dev?schema=public"
+PUBLIC_BASE_URL="http://localhost:3000"
+UPLOAD_DIR="uploads"
+```
+
+**Option B — Use docker-compose:**
+```yaml
+# docker-compose.yml
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+```
+```bash
+docker compose up -d
+```
+
+**Option C — Use a locally installed Postgres** (no Docker).  
+Point `DATABASE_URL` to your local instance and proceed.
+
+> **Integration tests** do **not** need a pre-running DB. They use **Testcontainers** to start an ephemeral Postgres automatically.
 
 ---
 
@@ -30,7 +76,7 @@ FUGA_PRODUCT_MANAGEMENT_SYSTEM/
 │  │  │  └─ migrations/
 │  │  └─ src/
 │  │     ├─ lib/
-│  │     │  └─ prisma.ts                 # Prisma client (reads DATABASE_URL when used)
+│  │     │  └─ prisma.ts                 # Prisma client (lazy, reads DATABASE_URL when used)
 │  │     ├─ middlewares/
 │  │     │  ├─ errors.ts                 # AppError, errorHandler, asyncHandler
 │  │     │  └─ validate.ts               # zod-powered validate(schema, source)
@@ -81,7 +127,8 @@ FUGA_PRODUCT_MANAGEMENT_SYSTEM/
 │        ├─ index.ts                     # exports zod schemas/types
 │        └─ product.ts                   # ProductCreateSchema, UpdateSchema, IdParamSchema
 │
-└─ .github/workflows/ci.yml              # CI: server tests, web tests, and build gate
+├─ .github/workflows/ci.yml              # CI: server tests, web tests, and build gate
+└─ package.json (root)                   # workspace scripts (dev, build, test, typecheck)
 ```
 
 ---
@@ -90,27 +137,28 @@ FUGA_PRODUCT_MANAGEMENT_SYSTEM/
 
 - **Node.js 20+**
 - **npm** (bundled with Node 20)
-- **PostgreSQL** (local) for manual running; **not required** for unit tests.
-- **Docker** (for Testcontainers in integration tests on CI/local)
+- **PostgreSQL** (running — Docker container, docker-compose, or local install)
+- **Docker Desktop** (for Testcontainers integration tests, optional for regular dev)
 
 ---
 
 ## Environment Variables
 
-Create an `.env` at repo root **and** in `apps/server` if you prefer separation. For local dev the important ones are:
+Create `.env` files:
 
+**apps/server/.env**
 ```ini
-# apps/server/.env
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/fuga_dev?schema=public"
 PUBLIC_BASE_URL="http://localhost:3000"
 UPLOAD_DIR="uploads"
+```
 
-# apps/web/.env
+**apps/web/.env**
+```ini
 NEXT_PUBLIC_API_URL="http://localhost:3000"
 ```
 
-> CI and integration tests set their own ephemeral DB via **Testcontainers**.
-> `PUBLIC_BASE_URL` is used to create absolute `coverUrl` for uploaded files.
+> `PUBLIC_BASE_URL` is used to build absolute `coverUrl` for uploaded files.
 
 ---
 
@@ -124,70 +172,41 @@ npm ci
 
 This installs workspace deps for `apps/server`, `apps/web`, and `packages/shared`.
 
-Generate Prisma client once (CI and tests also generate as needed):
+Prisma client (one-time or after schema changes):
 
 ```bash
 npm -w apps/server run prisma:generate
 ```
 
----
-
-## Database & Prisma
-
-Apply schema (local dev DB):
-
-```bash
-# generate client
-npm -w apps/server run prisma:generate
-
-# push schema (dev only) or run migrations
-npm -w apps/server run prisma:dbpush
-# or
-npm -w apps/server run prisma:migrate:dev
-```
-
-Seed sample data (50 curated products):
-
-```bash
-npm -w apps/server run prisma:seed
-```
+> The root `postinstall` also runs `prisma:generate` defensively.
 
 ---
 
 ## Running Locally
 
-**Server** (port 3000):
-
-```bash
-npm -w apps/server run dev
-```
-
-- REST API: `http://localhost:3000`
-- Swagger UI: `http://localhost:3000/api`
-- OpenAPI JSON: `http://localhost:3000/openapi.json`
-- Static uploads: `http://localhost:3000/uploads/*`
-
-**Web** (port 3001):
-
-```bash
-npm -w apps/web run dev
-```
-
-- Dashboard: `http://localhost:3001/(dashboard)`
-- Product details: `http://localhost:3001/(dashboard)/products/[id]`
-
-> Tip: keep both servers running in two terminals.
+1) Ensure **Postgres is running** (see “Docker vs `npm run dev`” above).
+2) Prepare Prisma:
+   ```bash
+   npm -w apps/server run prisma:dbpush   # or prisma:migrate:dev
+   npm -w apps/server run prisma:seed     # optional
+   ```
+3) Start both servers:
+   ```bash
+   npm run dev
+   ```
+   - API: `http://localhost:3000` (Swagger at `/api`, OpenAPI at `/openapi.json`)
+   - Web: `http://localhost:3001` (make sure `apps/web` uses `next dev -p 3001`)
 
 ---
 
 ## API Summary
 
-- `GET   /health` – simple probe  
-- `GET   /products` – list products (newest first)  
-- `GET   /products/:id` – get a product by id  
-- `POST  /products` – **multipart/form-data** (`name`, `artistName`, `cover`)  
-- `PATCH /products/:id` – **multipart**; optional fields (`name`, `artistName`, `cover`)  
-- `DELETE /products/:id` – delete by id
+- `GET   /health` — simple probe  
+- `GET   /products` — list products (newest first)  
+- `GET   /products/:id` — get a product by id  
+- `POST  /products` — **multipart/form-data** (`name`, `artistName`, `cover`)  
+- `PATCH /products/:id` — **multipart**; optional fields (`name`, `artistName`, `cover`)  
+- `DELETE /products/:id` — delete by id
 
 ### Validation & Errors
 
@@ -201,84 +220,24 @@ npm -w apps/web run dev
 
 ---
 
-## Frontend Features
-
-- Product grid with **filters** and **search** (client-side, debounced input).
-- **Lazy-loaded** images (`next/image`) + **skeleton** grid while loading.
-- Confirm‑delete **modal** (`components/ui/ConfirmDialog.tsx`).
-- Path alias `@/*` configured via `apps/web/tsconfig.json`.
-
----
-
 ## Testing
 
 ### Server
 
-**Layout**
-```
-apps/server/test/
-  unit/
-    errors.handler.test.ts
-    validate.middleware.test.ts
-    products.service.test.ts
-  e2e/
-    basic.e2e.test.ts
-  integration/
-    products.int.test.ts
-```
+- **Unit tests** mock Prisma: `vi.mock('../../src/lib/prisma')`.
+- **Integration tests** use **Testcontainers** to spin a Postgres 16 container automatically.
 
-**Commands**
+Run:
 ```bash
-# from repo root
-npm -w apps/server run test:unit
-npm -w apps/server run test:e2e
-npm -w apps/server run test:integration
-npm -w apps/server test                # runs all
+npm -w apps/server run test
 ```
-
-**Notes**
-- Unit tests mock Prisma: `vi.mock('../../src/lib/prisma')`.
-- E2E tests do **not** hit the DB; CI provides a placeholder `DATABASE_URL` to allow Prisma client construction.
-- Integration tests start Postgres with **Testcontainers**, set `process.env.DATABASE_URL` **before** importing the app, run `prisma db push` against the container DB, and then hit endpoints via Supertest.
 
 ### Web
 
-**Config**
-```ts
-// apps/web/vitest.config.ts
-import { defineConfig } from 'vitest/config';
-export default defineConfig({
-  test: { environment: 'jsdom', setupFiles: ['./vitest.setup.ts'], globals: true, css: true },
-  resolve: { alias: { '@': './' } }
-});
-```
-
-```ts
-// apps/web/vitest.setup.ts
-import '@testing-library/jest-dom';
-```
-
-```json
-// apps/web/tsconfig.json (snippet)
-{
-  "compilerOptions": {
-    "types": ["vitest/globals", "node"],
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
-    "jsx": "preserve"
-  }
-}
-```
-
-**Commands**
+Run:
 ```bash
-npm -w apps/web run test
-npm -w apps/web run typecheck
-```
-
-**Tip**
-If TypeScript complains about `vi` in a specific test during `tsc --noEmit`, add:
-```ts
-import { vi } from 'vitest';
+npm -w apps/web run test          # Vitest + RTL
+npm -w apps/web run typecheck     # tsc --noEmit
 ```
 
 ---
@@ -287,15 +246,8 @@ import { vi } from 'vitest';
 
 Workflow: `.github/workflows/ci.yml`
 
-- **server-tests**: install → build → run `test:unit`, `test:e2e`, and `test:integration` (Testcontainers).  
-  Sets:
-  ```yaml
-  PUBLIC_BASE_URL: http://localhost:3000
-  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/placeholder?schema=public
-  TESTCONTAINERS_RYUK_DISABLED: true
-  TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: /var/run/docker.sock
-  ```
-- **web-tests**: install → run Vitest + `tsc --noEmit`.
+- **server-tests**: install → build → run tests (unit + integration with Testcontainers).
+- **web-tests**: install → run Vitest + typecheck.
 - **build**: requires both test jobs to pass; builds server & web.
 
 ---
@@ -309,39 +261,16 @@ Workflow: `.github/workflows/ci.yml`
 
 ---
 
-## Common Scripts
-
-From repo root:
-
-```bash
-# Prisma
-npm -w apps/server run prisma:generate
-npm -w apps/server run prisma:dbpush
-npm -w apps/server run prisma:migrate:dev
-npm -w apps/server run prisma:seed
-
-# Dev
-npm -w apps/server run dev
-npm -w apps/web run dev
-
-# Tests
-npm -w apps/server run test
-npm -w apps/web run test
-npm -w apps/web run typecheck
-```
-
----
-
 ## Troubleshooting
 
 - **Prisma “Invalid value undefined for datasource …”**  
-  Ensure `DATABASE_URL` is set for dev. In CI, e2e uses a placeholder URL; integration tests set the container URL before importing the app.
+  Ensure `DATABASE_URL` points to a live Postgres (container or local install).
 
-- **Next.js `<Image>` quirks in tests**  
-  Mock `next/image` to a plain `img` in Vitest.
+- **Next.js `<Image>` appears full screen**  
+  Wrap with a sized container (e.g., `relative aspect-square`) and use `fill` + `object-cover`/`object-contain`.
 
 - **Vitest “Cannot find namespace 'vi'” in CI**  
-  Ensure `apps/web/tsconfig.json` includes: `"types": ["vitest/globals"]`. For one-off files, `import { vi } from 'vitest'`.
+  Ensure `apps/web/tsconfig.json` includes: `"types": ["vitest/globals"]`.
 
 ---
 

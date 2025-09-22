@@ -1,4 +1,3 @@
-// apps/server/src/middlewares/errors.ts
 import type { Request, Response, NextFunction } from 'express';
 import multer from 'multer';
 

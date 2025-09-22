@@ -9,7 +9,7 @@ export default function ProductFilters({
   artists
 }: {
   search: string; setSearch: (v: string) => void;
-  artist: string; setArtist: (v: string) => void; // 'all' or an artistName
+  artist: string; setArtist: (v: string) => void; 
   sort: SortKey; setSort: (v: SortKey) => void;
   artists: string[];
 }) {

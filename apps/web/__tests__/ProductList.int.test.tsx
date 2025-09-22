@@ -1,4 +1,3 @@
-// apps/web/__tests__/ProductList.test.tsx
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
@@ -8,7 +7,6 @@ vi.mock('@/lib/api', () => ({
     removeProduct: vi.fn().mockResolvedValue(undefined),
 }));
 
-// optional: make ConfirmDialog simple & clickable for tests
 vi.mock('@/components/ui/ConfirmDialog', () => ({
     default: (props: any) =>
         props.open ? (
@@ -20,7 +18,7 @@ vi.mock('@/components/ui/ConfirmDialog', () => ({
 }));
 
 import { removeProduct } from '@/lib/api';
-import ProductList from '@/components/ProductList'; // <- update path if needed
+import ProductList from '@/components/ProductList'; 
 import type { Product } from '@/lib/types';
 
 const products: Product[] = [
@@ -43,7 +41,7 @@ describe('ProductList', () => {
         render(<ProductList products={products} onChanged={onChanged} />);
 
 
-        const deleteBtn = screen.getByRole('button', { name: 'Delete Beta' }) // or within(betaArticle).getByRole(...)
+        const deleteBtn = screen.getByRole('button', { name: 'Delete Beta' }) 
         await user.click(deleteBtn);
 
         // confirm dialog should appear (mocked)
