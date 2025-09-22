@@ -290,12 +290,6 @@ Workflow: `.github/workflows/ci.yml`
 - **Prisma “Invalid value undefined for datasource …”**  
   Ensure `DATABASE_URL` is set for dev. In CI, e2e uses a placeholder URL; integration tests set the container URL before importing the app.
 
-- **Next.js `<Image>` appears full screen**  
-  Wrap with a sized container (e.g., `relative aspect-square`) and use `fill` + `object-cover`/`object-contain`.
-
-- **Vitest “Cannot find namespace 'vi'” in CI**  
-  Ensure `apps/web/tsconfig.json` includes: `"types": ["vitest/globals"]`. For one-off files, `import { vi } from 'vitest'`.
-
 ---
 
 ## License
