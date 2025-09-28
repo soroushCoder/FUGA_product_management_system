@@ -11,16 +11,6 @@ export class AppError extends Error {
   }
 }
 
-// --- small type guards -------------------------------------------------------
-
-function hasStringProp<K extends string>(
-  obj: unknown,
-  key: K
-): obj is Record<K, string> {
-  return typeof obj === 'object' && obj !== null &&
-         typeof (obj as Record<string, unknown>)[key] === 'string';
-}
-
 // -----------------------------------------------------------------------------
 // Centralized error handler (keep as the last middleware)
 // -----------------------------------------------------------------------------
@@ -34,7 +24,7 @@ export function errorHandler(
   if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
     return res.status(413).json({ message: 'File too large' });
   }
-  if (hasStringProp(err, 'message') && err.message === 'UNSUPPORTED_FILE_TYPE') {
+  if (err instanceof Error && err.message === 'UNSUPPORTED_FILE_TYPE') {
     return res.status(400).json({ message: 'Only PNG, JPEG or WEBP images are allowed' });
   }
 
