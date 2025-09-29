@@ -13,23 +13,23 @@ type Props = {
 export default function ProductCard({ product, onDelete }: Props) {
     return (
         <div className="group relative rounded-2xl overflow-hidden bg-black/5 shadow-sm ring-1 ring-black/5">
-            {/* Image */}
+    
             <div className="relative w-full aspect-[4/3] overflow-hidden">
                 <Image
                     src={product.coverUrl}
                     alt={product.name}
                     fill
-                    loading="lazy"        
-                    decoding="async" 
+                    loading="lazy"
+                    decoding="async"
                     sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
                     className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
                     priority={false}
                 />
-                {/* Gradient overlay */}
+             
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent pointer-events-none" />
             </div>
 
-            {/* Text & CTA */}
+       
             <Link
                 href={`/products/${product.id}`}
                 className="absolute inset-0 flex items-end focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
@@ -45,7 +45,7 @@ export default function ProductCard({ product, onDelete }: Props) {
                 </div>
             </Link>
 
-            {/* Delete pill */}
+ 
             {onDelete && (
                 <button
                     onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete?.(product.id); }}
