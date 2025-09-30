@@ -1,6 +1,6 @@
 'use client';
 
-import * as React from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 type Props = {
@@ -22,19 +22,14 @@ export default function ConfirmDialog({
   onConfirm,
   onCancel,
 }: Props) {
-  const [mounted, setMounted] = React.useState(false);
-  const cancelRef = React.useRef<HTMLButtonElement>(null);
+  const [mounted, setMounted] = useState(false);
+  const cancelRef = useRef<HTMLButtonElement>(null);
 
-  React.useEffect(() => setMounted(true), []);
-  React.useEffect(() => {
-    if (open) cancelRef.current?.focus();
-  }, [open]);
-
-  React.useEffect(() => {
+  useEffect(() => setMounted(true), []);
+  useEffect(() => { if (open) cancelRef.current?.focus(); }, [open]);
+  useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCancel();
-    };
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onCancel();
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onCancel]);
@@ -53,19 +48,11 @@ export default function ConfirmDialog({
       <div className="relative z-10 w-full max-w-sm rounded-2xl bg-white p-5 shadow-lg ring-1 ring-black/10">
         <h2 id="confirm-title" className="text-lg font-semibold">{title}</h2>
         <p id="confirm-desc" className="mt-2 text-sm text-gray-600">{description}</p>
-
         <div className="mt-4 flex items-center justify-end gap-2">
-          <button
-            ref={cancelRef}
-            onClick={onCancel}
-            className="h-10 rounded-xl border border-gray-300 bg-white px-4 hover:bg-gray-50"
-          >
+          <button ref={cancelRef} onClick={onCancel} className="h-10 rounded-xl border border-gray-300 bg-white px-4 hover:bg-gray-50">
             {cancelText}
           </button>
-          <button
-            onClick={onConfirm}
-            className="h-10 rounded-xl bg-red-600 px-4 text-white hover:bg-red-700"
-          >
+          <button onClick={onConfirm} className="h-10 rounded-xl bg-red-600 px-4 text-white hover:bg-red-700">
             {confirmText}
           </button>
         </div>

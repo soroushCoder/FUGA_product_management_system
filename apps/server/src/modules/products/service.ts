@@ -3,6 +3,21 @@ import { getPrisma } from '../../lib/prisma.js';
 
 import { CONFIG } from '../../env.js';
 import { AppError } from '../../middlewares/errors.js';
+import { ProductCreate, ProductUpdate } from '@fuga/shared';
+
+
+async function safeUnlink(filePath?: string) {
+  if (!filePath) return;
+  try {
+    await fs.unlink(filePath);
+  } catch (err: any) {
+    // Ignore "file not found", log everything else
+    if (err?.code !== 'ENOENT') {
+      // replace with your logger (pino/winston/console)
+      console.warn('Failed to delete temp file', { filePath, err });
+    }
+  }
+}
 
 function absUrl(filename: string) {
   return `${CONFIG.PUBLIC_BASE_URL}/uploads/${filename}`;
@@ -21,11 +36,7 @@ export async function getProduct(id: number) {
   return product;
 }
 
-export async function createProduct(args: {
-  name: string;
-  artistName: string;
-  file?: Express.Multer.File;
-}) {
+export async function createProduct(args: ProductCreate & { file?: Express.Multer.File }) {
   const { name, artistName, file } = args;
   const prisma = getPrisma();
   if (!file) throw new AppError(400, 'cover is required');
@@ -35,14 +46,14 @@ export async function createProduct(args: {
       data: { name, artistName, coverUrl: absUrl(file.filename) }
     });
   } catch (e) {
-    if (file?.path) fs.unlink(file.path).catch(() => {});
+    await safeUnlink(file?.path);
     throw e;
   }
 }
 
 export async function updateProduct(
   id: number,
-  args: { name?: string; artistName?: string; file?: Express.Multer.File }
+  args: ProductUpdate & { file?: Express.Multer.File }
 ) {
   const { name, artistName, file } = args;
   const prisma = getPrisma();
@@ -59,7 +70,7 @@ export async function updateProduct(
     return await prisma.product.update({ where: { id }, data });
   } catch (e: any) {
     if (e?.code === 'P2025') throw new AppError(404, 'Product not found');
-    if (file?.path) fs.unlink(file.path).catch(() => {});
+    await safeUnlink(file?.path);
     throw e;
   }
 }

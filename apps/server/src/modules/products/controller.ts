@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { asyncHandler } from '../../middlewares/errors.js';
+import { AppError, asyncHandler } from '../../middlewares/errors.js';
 import {
   listProducts,
   getProduct,
@@ -45,7 +45,10 @@ export const list = asyncHandler(async (_req: Request, res: Response) => {
  *         $ref: '#/components/responses/NotFound'
  */
 export const get = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params as unknown as { id: number };
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) {
+    throw new AppError(422, 'Invalid id');
+  }
   res.json(await getProduct(id));
 });
 
@@ -105,7 +108,10 @@ export const create = asyncHandler(async (req: Request, res: Response) => {
  *       422: { $ref: '#/components/responses/UnprocessableEntity' }
  */
 export const update = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params as unknown as { id: number };
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) {
+    throw new AppError(422, 'Invalid id');
+  }
   const { name, artistName } = req.body as { name?: string; artistName?: string };
   const file = (req as MulterRequest).file;           
   const updated = await updateProduct(id, { name, artistName, file });
@@ -125,7 +131,10 @@ export const update = asyncHandler(async (req: Request, res: Response) => {
  *       404: { $ref: '#/components/responses/NotFound' }
  */
 export const remove = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params as unknown as { id: number };
+   const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) {
+    throw new AppError(422, 'Invalid id');
+  }
   await deleteProduct(id);
   res.status(204).send();
 });

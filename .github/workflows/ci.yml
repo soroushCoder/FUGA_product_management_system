@@ -14,7 +14,6 @@ concurrency:
 env:
   NODE_VERSION: '20'
   NEXT_TELEMETRY_DISABLED: '1'
-  # Testcontainers runs fine on GH runners; disabling Ryuk avoids rare perms issues.
   TESTCONTAINERS_RYUK_DISABLED: 'true'
   # Used by server service.ts for absolute image URLs
   PUBLIC_BASE_URL: 'http://localhost:3000'

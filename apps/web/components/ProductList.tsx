@@ -1,10 +1,9 @@
 'use client';
-
-import * as React from 'react';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import ProductCard from './ProductCard';
 import type { Product } from '@/lib/types';
 import { removeProduct } from '@/lib/api';
+import { useState } from 'react';
 
 type Props = {
   products: Product[];
@@ -12,8 +11,8 @@ type Props = {
 };
 
 export default function ProductList({ products, onChanged }: Props) {
-  const [confirmOpen, setConfirmOpen] = React.useState(false);
-  const [pendingId, setPendingId] = React.useState<number | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingId, setPendingId] = useState<number | null>(null);
 
   const askDelete = (id: number) => {
     setPendingId(id);
